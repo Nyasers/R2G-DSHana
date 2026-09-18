@@ -17,6 +17,12 @@ CLI 冒烟（不联网、不花钱）：
 .venv/bin/repo2gal RhoPaper/Repo2Gal --reuse-backup --script my_story.txt --dry-run
 ```
 
+开发平台为 Linux / macOS / WSL2（CI 只跑 `ubuntu-latest`）。原生 Windows 不受支持：
+Asset Pack 依赖的 `openat`/`O_NOFOLLOW` 在原生 Windows 上不存在，离线测试会有数十项
+必然失败。Windows 贡献者请在 WSL2 内建 venv、跑测试并提 PR；平台相关兼容补丁
+（`os.name == "nt"` 分支、locale 编码兜底、路径分隔符改写等）不合并，除非该平台同时
+进了 CI 且有离线测试覆盖对应分支。
+
 > 在线演示：[https://repo2gal.rhopaper.top/demo](https://repo2gal.rhopaper.top/demo)（dogfooding 产物，部署见
 > `docs/dev/deployment.md`）。
 

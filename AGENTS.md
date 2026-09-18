@@ -220,6 +220,11 @@ export REPO2GAL_API_KEY=sk_xxx
 网络测试应显式执行，普通单元测试必须离线。不得把真实 token、LLM 响应、完整第三方备份
 或生成产物提交到 Git；`.repo2gal/`、`output/`、`.venv/` 已忽略。
 
+**支持平台：Linux / macOS / WSL2。** CI 只有 `ubuntu-latest`，代码按 POSIX 假设编写
+（Asset Pack 安全加载依赖 `openat`/`O_NOFOLLOW`）。原生 Windows 不在支持范围内，
+Windows 贡献者在 WSL2 内开发与测试。平台相关兼容补丁（`os.name == "nt"` 分支、locale
+编码兜底、路径分隔符改写等）不接受，除非同时把该平台纳入 CI 并有离线测试覆盖该分支。
+
 ## 8. 修改流程
 
 1. 先读相关实现和当前文档，不从早期规划猜。
@@ -237,6 +242,9 @@ export REPO2GAL_API_KEY=sk_xxx
 - 不传 `--asset-pack` 时 WebGAL 默认素材仍只有 3 张背景和 1 首 BGM。
 - `python-github-backup` 不落盘仓库列表元数据，目前由一个受控官方 REST 请求补齐。
 - 全量大仓库备份可能很慢、很大；依赖上游增量机制，不自己再写缓存协议。
+- 原生 Windows 不受支持（Windows 上的唯一路径是 WSL2）：Asset Pack 的
+  `openat`/`O_NOFOLLOW` 检查在原生 Windows 上必然失败，约 43 项离线测试因此为既有失败；
+  这是设计取舍而非缺陷，平台兼容补丁不进主干。
 - 三种模式都仍是单场景产物；多场景 / 多章节切分尚未实现。
 - Overview 与 Quick Start 在线采集使用轻量 flags（Overview：源码/Release/wiki；
   Quick Start：源码/Issue 与评论/wiki），复用完整备份时跳过无关 JSON 解析；
