@@ -134,7 +134,7 @@ def test_retryable_status_exhausts_attempts(monkeypatch):
 
     monkeypatch.setattr(llm_module.requests, "post", fake_post)
     with pytest.raises(GenerationError) as exc:
-        client().complete("prompt")
+        client(max_attempts=3).complete("prompt")
     assert len(calls) == 3
     assert "503" in str(exc.value)
 
@@ -160,7 +160,7 @@ def test_retry_notice_is_reported(monkeypatch):
 
     monkeypatch.setattr(llm_module.requests, "post", fake_post)
     with pytest.raises(GenerationError):
-        client(notify=notices.append).complete("prompt")
+        client(max_attempts=3, notify=notices.append).complete("prompt")
     assert len(notices) == 2
     assert all("重试" in notice for notice in notices)
 
