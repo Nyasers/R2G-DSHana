@@ -1,0 +1,113 @@
+name: Generate DSHana Chronicle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: r2g-dshana-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require configuration
+        env:
+          REPO2GAL_API_KEY: ${{ secrets.REPO2GAL_API_KEY }}
+          GH_BACKUP_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
+          REPO2GAL_BASE_URL: ${{ vars.REPO2GAL_BASE_URL }}
+          REPO2GAL_MODEL: ${{ vars.REPO2GAL_MODEL }}
+        run: |
+          missing=0
+          test -n "$REPO2GAL_API_KEY" || { echo "缺少 secret：REPO2GAL_API_KEY" >&2; missing=1; }
+          test -n "$GH_BACKUP_TOKEN" || { echo "缺少 secret：GH_BACKUP_TOKEN（只读 PAT，采集 Nyasers/DSHana 数据用）" >&2; missing=1; }
+          test -n "$REPO2GAL_BASE_URL" || { echo "缺少 variable：REPO2GAL_BASE_URL（OpenAI 兼容端点，需带 /v1）" >&2; missing=1; }
+          test -n "$REPO2GAL_MODEL" || { echo "缺少 variable：REPO2GAL_MODEL" >&2; missing=1; }
+          exit $missing
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install --yes libmagic1
+
+      - name: Install Repo2Gal
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -e .
+
+      - name: Restore WebGAL template cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/repo2gal
+          key: ${{ runner.os }}-repo2gal-webgal-4.6.2
+
+      - name: Restore incremental GitHub backup
+        uses: actions/cache@v4
+        with:
+          path: .repo2gal/backups/Nyasers
+          key: ${{ runner.os }}-repo2gal-backup-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-repo2gal-backup-
+
+      - name: Generate chronicle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
+          REPO2GAL_API_KEY: ${{ secrets.REPO2GAL_API_KEY }}
+          REPO2GAL_BASE_URL: ${{ vars.REPO2GAL_BASE_URL }}
+          REPO2GAL_MODEL: ${{ vars.REPO2GAL_MODEL }}
+        run: |
+          .venv/bin/repo2gal Nyasers/DSHana \
+            --asset-pack builtin:cc0-chronicle \
+            --public-assets \
+            --save-stage-outputs .repo2gal/audit/stages \
+            --output output/dshana
+
+      - name: Verify output
+        run: |
+          test -s output/dshana/index.html
+          test -s output/dshana/game/scene/start.txt
+          grep -q "end;" output/dshana/game/scene/start.txt
+
+      - name: Upload generation audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-audit-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            .repo2gal/audit/**
+            output/dshana/game/scene/start.txt
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output/dshana
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
