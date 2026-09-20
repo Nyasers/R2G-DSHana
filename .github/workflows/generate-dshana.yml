@@ -2,6 +2,15 @@ name: Generate DSHana Chronicle
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 剧本模式（chronicle 编年史 / overview 仓库概览 / quickstart 贡献者上手）
+        type: choice
+        options:
+          - chronicle
+          - overview
+          - quickstart
+        default: chronicle
   schedule:
     - cron: "7 20 * * *"
 
@@ -107,6 +116,7 @@ jobs:
           REPO2GAL_MODEL: ${{ vars.REPO2GAL_MODEL }}
         run: |
           .venv/bin/repo2gal Nyasers/DSHana \
+            --mode "${{ inputs.mode || 'chronicle' }}" \
             --asset-pack builtin:cc0-chronicle \
             --public-assets \
             --save-stage-outputs .repo2gal/audit/stages \
