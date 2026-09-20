@@ -332,6 +332,9 @@ def run_backup(
         command.append("--as-app")
     if incremental and repo_dir.exists():
         command.append("--incremental")
+        # 已备份且未变更的 issue/PR 沿用本地文件，不再重拉评论、评审、提交与
+        # 时间线；列表请求仍每次执行，用来发现新实体。
+        command.append("--incremental-by-files")
 
     token_file: str | None = None
     try:
