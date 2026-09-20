@@ -13,23 +13,26 @@ def test_resolve_base_url_priority(monkeypatch):
     assert config.resolve_base_url("https://flag.example") == "https://flag.example"  # flag 优先
 
 
-def test_resolve_model_priority(monkeypatch):
+def test_resolve_model_chain_single_name_is_one_link(monkeypatch):
     monkeypatch.delenv("REPO2GAL_MODEL", raising=False)
-    assert config.resolve_model(None) == config.DEFAULT_MODEL
+    assert config.resolve_model_chain() == (config.DEFAULT_MODEL,)
     monkeypatch.setenv("REPO2GAL_MODEL", "env-model")
-    assert config.resolve_model(None) == "env-model"
-    assert config.resolve_model("flag-model") == "flag-model"
+    assert config.resolve_model_chain() == ("env-model",)
+    assert config.resolve_model_chain("flag-model") == ("flag-model",)
 
 
-def test_resolve_model_fallbacks_dedupes_and_drops_primary(monkeypatch):
-    monkeypatch.setenv("REPO2GAL_MODEL", "primary")
-    monkeypatch.setenv("REPO2GAL_MODEL_FALLBACKS", "backup-a, primary , backup-b,,backup-a")
-    assert config.resolve_model_fallbacks() == ("backup-a", "backup-b")
+def test_resolve_model_chain_splits_dedupes_and_trims(monkeypatch):
+    monkeypatch.delenv("REPO2GAL_MODEL", raising=False)
+    assert config.resolve_model_chain("primary, backup-a , backup-b,,backup-a") == (
+        "primary",
+        "backup-a",
+        "backup-b",
+    )
 
 
-def test_resolve_model_fallbacks_empty_when_unset(monkeypatch):
-    monkeypatch.delenv("REPO2GAL_MODEL_FALLBACKS", raising=False)
-    assert config.resolve_model_fallbacks() == ()
+def test_resolve_model_chain_falls_back_when_blank(monkeypatch):
+    monkeypatch.setenv("REPO2GAL_MODEL", "   ,  ,")
+    assert config.resolve_model_chain() == (config.DEFAULT_MODEL,)
 
 
 def test_resolve_api_key_prefers_repo2gal(monkeypatch):

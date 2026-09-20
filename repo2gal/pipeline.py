@@ -70,8 +70,7 @@ class RunOptions:
     strict: bool = False
     save_prompt: Path | None = None
     base_url: str = DEFAULT_BASE_URL
-    model: str = DEFAULT_MODEL
-    model_fallbacks: tuple[str, ...] = ()
+    models: tuple[str, ...] = (DEFAULT_MODEL,)
     api_key: str | None = None
     llm_timeout: int = DEFAULT_LLM_TIMEOUT
     asset_pack: Path | str | None = None
@@ -312,8 +311,7 @@ def run_pipeline(
     else:
         client = llm_client or LLMClient(
             base_url=options.base_url,
-            model=options.model,
-            fallback_models=options.model_fallbacks,
+            models=options.models,
             api_key=options.api_key,
             timeout=options.llm_timeout,
             notify=log,

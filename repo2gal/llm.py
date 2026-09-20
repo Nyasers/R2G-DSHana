@@ -5,10 +5,11 @@ base_url 接入。本模块负责网络、模型降级与响应解析，并把�
 :class:`~repo2gal.errors.GenerationError`（CLI 退出码 4），错误正文一律脱敏。
 叙事 prompt 的组装在 ``generator.py``，导演 JSON 的校验重试在 ``pipeline.py``。
 
-免费与共享端点最常见的故障是单模型过载（5xx）与限流（429），而配额和过载都按
-模型独立，所以恢复策略是换模型而不是干等：同一模型内短暂重试，用尽后立刻切到
-链上的下一个；模型不存在（404）不重试直接切；认证失败等其余错误立即抛出。
-最近成功过的模型会提到链首，避免在已知过载的模型上反复试错。
+模型链按顺序尝试，像 PATH 一样从左到右找第一个能用的。免费与共享端点最常见的
+故障是单模型过载（5xx）与限流（429），而配额和过载都按模型独立，所以恢复策略
+是换模型而不是干等：同一模型内短暂重试，用尽后立刻切到链上的下一个；模型不
+存在（404）不重试直接切；认证失败等其余错误立即抛出。最近成功过的模型会提到
+链首，避免在已知过载的模型上反复试错。
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from typing import Callable
 
 import requests
 
-from .config import DEFAULT_LLM_TIMEOUT, resolve_api_key
+from .config import DEFAULT_LLM_TIMEOUT, DEFAULT_MODEL, resolve_api_key
 from .errors import GenerationError, redact_error
 
 MISSING_KEY_MESSAGE = "缺少 API Key，请设置环境变量 REPO2GAL_API_KEY"
@@ -39,28 +40,21 @@ class LLMClient:
         self,
         *,
         base_url: str,
-        model: str,
+        models: tuple[str, ...] | list[str],
         api_key: str | None = None,
         timeout: int = DEFAULT_LLM_TIMEOUT,
-        fallback_models: tuple[str, ...] = (),
         max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         retry_backoff: tuple[float, ...] = DEFAULT_RETRY_BACKOFF,
         notify: Callable[[str], None] | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
-        self.model = model
+        self.models = tuple(models) or (DEFAULT_MODEL,)
         self.api_key = api_key
         self.timeout = timeout
-        self.fallback_models = tuple(fallback_models)
         self.max_attempts = max(1, max_attempts)
         self.retry_backoff = tuple(retry_backoff)
         self.notify = notify
         self._preferred_model: str | None = None
-
-    @property
-    def models(self) -> tuple[str, ...]:
-        """完整模型链：主模型在前，降级模型按配置顺序跟随。"""
-        return (self.model, *self.fallback_models)
 
     def complete(self, prompt: str, *, temperature: float = 0.8) -> str:
         """按模型链调用一次 Chat Completions 并返回 content 字符串。"""
