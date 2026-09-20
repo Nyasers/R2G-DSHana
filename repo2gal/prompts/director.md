@@ -29,15 +29,16 @@
 - `choice` beat 必须有 `choices` 数组，每个 `target` 必须是草稿中存在的 beat id；choice beat 不要再设置 `jump`。
 - `jump` 可选，`target` 必须是草稿中存在的 beat id。
 - `title` 与 `subtitle` 各一行（可省略 subtitle）；由系统生成的 `sceneId`、`storyHash`、`profile` 照抄输入即可。
-- 动作的字段名由 `kind` 固定，不得自造：
-  - `figure.enter`：character / slot / motion / duration
-  - `figure.exit`：character / motion / duration
-  - `figure.move`：character / to / duration / easing
-  - `figure.shake`：character / intensity / duration
-  - `figure.animate`：character / preset / duration
-  - `screen.transition`：phase / preset / duration
-  - `screen.effect`：preset / intensity
-  动画、转场与屏幕效果一律用 `preset`（取值见 capability registry）；没有 `animation`、`effect` 这类字段名。
+- 动作必须写全该 `kind` 的全部字段，字段名不得自造；下面每条是一段动作的完整形态（不是同一个 cue 的内容）：
+  - `{"kind": "figure.enter", "character": "角色", "slot": "left", "motion": "from-left", "duration": "medium"}`
+  - `{"kind": "figure.exit", "character": "角色", "motion": "fade", "duration": "short"}`
+  - `{"kind": "figure.move", "character": "角色", "to": "right", "duration": "medium", "easing": "easeInOut"}`
+  - `{"kind": "figure.shake", "character": "角色", "intensity": "normal", "duration": "short"}`
+  - `{"kind": "figure.animate", "character": "角色", "preset": "shockwaveIn", "duration": "short"}`
+  - `{"kind": "screen.transition", "phase": "enter", "preset": "shockwaveIn", "duration": "medium"}`
+  - `{"kind": "screen.effect", "preset": "snow", "intensity": "subtle"}`
+  动画、转场与屏幕效果一律用 `preset`；没有 `animation`、`effect` 这类字段名。
+- `choices[].target` 与 `jump.target` 都是裸字符串（形如 `"b000022"`），不得写成对象。
 
 # JSON 形状（只输出 JSON，不要 Markdown 代码围栏，不要解释）
 
