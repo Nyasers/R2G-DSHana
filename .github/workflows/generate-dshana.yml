@@ -16,31 +16,31 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.compare.outputs.tag }}
+      revision: ${{ steps.compare.outputs.revision }}
       should_run: ${{ steps.compare.outputs.should_run }}
     steps:
-      - name: Restore recorded release
+      - name: Restore recorded revision
         uses: actions/cache/restore@v4
         with:
           path: .r2g-state
-          key: dshana-release-${{ github.run_id }}
-          restore-keys: dshana-release-
+          key: dshana-state-${{ github.run_id }}
+          restore-keys: dshana-state-
 
-      - name: Compare with latest DSHana release
+      - name: Compare with DSHana master head
         id: compare
         env:
           GH_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
         run: |
           set -eu
-          latest=$(gh api repos/Nyasers/DSHana/releases/latest --jq .tag_name)
-          recorded=$(cat .r2g-state/last-release.txt 2>/dev/null | tr -d '\r\n' || true)
-          echo "tag=$latest" >> "$GITHUB_OUTPUT"
+          latest=$(gh api repos/Nyasers/DSHana/git/ref/heads/master --jq .object.sha)
+          recorded=$(cat .r2g-state/last-commit.txt 2>/dev/null | tr -d '\r\n' || true)
+          echo "revision=$latest" >> "$GITHUB_OUTPUT"
           if [ -n "$recorded" ] && [ "$latest" = "$recorded" ]; then
             echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "已按 $latest 生成过，本次跳过"
+            echo "master 仍是 ${latest:0:8}，本次跳过"
           else
             echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "待生成的 release：${recorded:-（无记录）} -> $latest"
+            echo "master 已推进：${recorded:0:8} -> ${latest:0:8}"
           fi
 
   build:
@@ -129,16 +129,16 @@ jobs:
             .repo2gal/audit/**
             output/dshana/game/scene/start.txt
 
-      - name: Record generated release
+      - name: Record generated revision
         run: |
           mkdir -p .r2g-state
-          printf '%s\n' "${{ needs.check.outputs.tag }}" > .r2g-state/last-release.txt
+          printf '%s\n' "${{ needs.check.outputs.revision }}" > .r2g-state/last-commit.txt
 
-      - name: Save recorded release
+      - name: Save recorded revision
         uses: actions/cache/save@v4
         with:
           path: .r2g-state
-          key: dshana-release-${{ github.run_id }}
+          key: dshana-state-${{ github.run_id }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
