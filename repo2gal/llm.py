@@ -23,9 +23,9 @@ MISSING_KEY_MESSAGE = "缺少 API Key，请设置环境变量 REPO2GAL_API_KEY"
 
 # 免费与共享端点最常见的瞬时状态码，重发同一请求有机会成功。
 RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
-DEFAULT_MAX_ATTEMPTS = 4
-# 免费端点的 high demand 过载可持续数十秒，退避要够长才能穿越。
-DEFAULT_RETRY_BACKOFF = (10.0, 30.0, 60.0)
+# 免费端点的 high demand 过载可持续数分钟，退避累计要够长才穿得过去。
+DEFAULT_MAX_ATTEMPTS = 6
+DEFAULT_RETRY_BACKOFF = (15.0, 30.0, 60.0, 120.0, 240.0)
 
 
 class LLMClient:

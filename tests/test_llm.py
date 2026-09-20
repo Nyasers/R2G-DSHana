@@ -168,3 +168,8 @@ def test_retry_notice_is_reported(monkeypatch):
 def test_backoff_sequence_repeats_last_value():
     instance = client(max_attempts=4, retry_backoff=(1.0, 2.0))
     assert [instance._backoff_for(n) for n in (1, 2, 3, 4)] == [1.0, 2.0, 2.0, 2.0]
+
+
+def test_default_retry_budget_covers_sustained_overload():
+    assert llm_module.DEFAULT_MAX_ATTEMPTS >= 4
+    assert sum(llm_module.DEFAULT_RETRY_BACKOFF) >= 300

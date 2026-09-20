@@ -47,7 +47,7 @@ jobs:
     needs: check
     if: needs.check.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
       pages: write
