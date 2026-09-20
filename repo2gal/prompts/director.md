@@ -29,6 +29,15 @@
 - `choice` beat 必须有 `choices` 数组，每个 `target` 必须是草稿中存在的 beat id；choice beat 不要再设置 `jump`。
 - `jump` 可选，`target` 必须是草稿中存在的 beat id。
 - `title` 与 `subtitle` 各一行（可省略 subtitle）；由系统生成的 `sceneId`、`storyHash`、`profile` 照抄输入即可。
+- 动作的字段名由 `kind` 固定，不得自造：
+  - `figure.enter`：character / slot / motion / duration
+  - `figure.exit`：character / motion / duration
+  - `figure.move`：character / to / duration / easing
+  - `figure.shake`：character / intensity / duration
+  - `figure.animate`：character / preset / duration
+  - `screen.transition`：phase / preset / duration
+  - `screen.effect`：preset / intensity
+  动画、转场与屏幕效果一律用 `preset`（取值见 capability registry）；没有 `animation`、`effect` 这类字段名。
 
 # JSON 形状（只输出 JSON，不要 Markdown 代码围栏，不要解释）
 
