@@ -2,15 +2,6 @@ name: Generate DSHana Chronicle
 
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 剧本模式（chronicle 编年史 / overview 仓库概览 / quickstart 贡献者上手）
-        type: choice
-        options:
-          - chronicle
-          - overview
-          - quickstart
-        default: chronicle
   schedule:
     - cron: "7 20 * * *"
 
@@ -71,12 +62,14 @@ jobs:
           GH_BACKUP_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
           REPO2GAL_BASE_URL: ${{ vars.REPO2GAL_BASE_URL }}
           REPO2GAL_MODEL: ${{ vars.REPO2GAL_MODEL }}
+          REPO2GAL_MODE: ${{ vars.REPO2GAL_MODE }}
         run: |
           missing=0
           test -n "$REPO2GAL_API_KEY" || { echo "缺少 secret：REPO2GAL_API_KEY" >&2; missing=1; }
           test -n "$GH_BACKUP_TOKEN" || { echo "缺少 secret：GH_BACKUP_TOKEN（只读 PAT，采集 Nyasers/DSHana 数据用）" >&2; missing=1; }
           test -n "$REPO2GAL_BASE_URL" || { echo "缺少 variable：REPO2GAL_BASE_URL（OpenAI 兼容端点，需带 /v1）" >&2; missing=1; }
           test -n "$REPO2GAL_MODEL" || { echo "缺少 variable：REPO2GAL_MODEL" >&2; missing=1; }
+          echo "剧本模式：${REPO2GAL_MODE:-chronicle（未配置 REPO2GAL_MODE）}"
           exit $missing
 
       - name: Set up Python
@@ -114,9 +107,9 @@ jobs:
           REPO2GAL_API_KEY: ${{ secrets.REPO2GAL_API_KEY }}
           REPO2GAL_BASE_URL: ${{ vars.REPO2GAL_BASE_URL }}
           REPO2GAL_MODEL: ${{ vars.REPO2GAL_MODEL }}
+          REPO2GAL_MODE: ${{ vars.REPO2GAL_MODE }}
         run: |
           .venv/bin/repo2gal Nyasers/DSHana \
-            --mode "${{ inputs.mode || 'chronicle' }}" \
             --asset-pack builtin:cc0-chronicle \
             --public-assets \
             --save-stage-outputs .repo2gal/audit/stages \
