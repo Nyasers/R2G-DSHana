@@ -23,7 +23,12 @@ class FakeResponse:
 
 
 def client(**kwargs):
-    defaults = {"base_url": "https://example.test/v1", "model": "m", "api_key": "sk-secret-123"}
+    defaults = {
+        "base_url": "https://example.test/v1",
+        "model": "m",
+        "api_key": "sk-secret-123",
+        "retry_backoff": (),  # 离线测试不等待
+    }
     defaults.update(kwargs)
     return LLMClient(**defaults)
 
@@ -104,3 +109,62 @@ def test_non_string_content_wrapped(monkeypatch):
     with pytest.raises(GenerationError) as exc:
         client().complete("prompt")
     assert "不是字符串" in str(exc.value)
+
+
+def test_retryable_status_retried_then_succeeds(monkeypatch):
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            return FakeResponse(ok=False, status_code=503, text='{"error":"unavailable"}')
+        return FakeResponse(payload={"choices": [{"message": {"content": "剧本"}}]})
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    assert client().complete("prompt") == "剧本"
+    assert len(calls) == 2
+
+
+def test_retryable_status_exhausts_attempts(monkeypatch):
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append(1)
+        return FakeResponse(ok=False, status_code=503, text='{"error":"unavailable"}')
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    with pytest.raises(GenerationError) as exc:
+        client().complete("prompt")
+    assert len(calls) == 3
+    assert "503" in str(exc.value)
+
+
+def test_non_retryable_status_fails_immediately(monkeypatch):
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append(1)
+        return FakeResponse(ok=False, status_code=400, text='{"error":"bad request"}')
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    with pytest.raises(GenerationError):
+        client().complete("prompt")
+    assert len(calls) == 1
+
+
+def test_retry_notice_is_reported(monkeypatch):
+    notices = []
+
+    def fake_post(url, **kwargs):
+        return FakeResponse(ok=False, status_code=429, text='{"error":"rate limited"}')
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    with pytest.raises(GenerationError):
+        client(notify=notices.append).complete("prompt")
+    assert len(notices) == 2
+    assert all("重试" in notice for notice in notices)
+
+
+def test_backoff_sequence_repeats_last_value():
+    instance = client(max_attempts=4, retry_backoff=(1.0, 2.0))
+    assert [instance._backoff_for(n) for n in (1, 2, 3, 4)] == [1.0, 2.0, 2.0, 2.0]

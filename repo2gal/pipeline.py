@@ -314,6 +314,7 @@ def run_pipeline(
             model=options.model,
             api_key=options.api_key,
             timeout=options.llm_timeout,
+            notify=log,
         )
         log(f"LLM 第 1/3 轮：自由创作{GAME_MODE_TITLES[options.mode]}剧本草稿")
         draft_raw = client.complete(prompt, temperature=0.8)
