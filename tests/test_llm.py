@@ -170,6 +170,98 @@ def test_backoff_sequence_repeats_last_value():
     assert [instance._backoff_for(n) for n in (1, 2, 3, 4)] == [1.0, 2.0, 2.0, 2.0]
 
 
-def test_default_retry_budget_covers_sustained_overload():
-    assert llm_module.DEFAULT_MAX_ATTEMPTS >= 4
-    assert sum(llm_module.DEFAULT_RETRY_BACKOFF) >= 300
+def test_defaults_keep_single_model_retries_short():
+    assert llm_module.DEFAULT_MAX_ATTEMPTS <= 2
+    assert sum(llm_module.DEFAULT_RETRY_BACKOFF) < 60
+
+
+def test_retryable_failure_switches_to_fallback_model(monkeypatch):
+    seen = []
+
+    def fake_post(url, **kwargs):
+        model = kwargs["json"]["model"]
+        seen.append(model)
+        if model == "primary":
+            return FakeResponse(ok=False, status_code=503, text='{"error":"overloaded"}')
+        return FakeResponse(payload={"choices": [{"message": {"content": "剧本"}}]})
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    instance = client(model="primary", fallback_models=("backup",), max_attempts=1)
+    assert instance.complete("prompt") == "剧本"
+    assert seen == ["primary", "backup"]
+
+
+def test_missing_model_switches_without_retrying_it(monkeypatch):
+    seen = []
+
+    def fake_post(url, **kwargs):
+        model = kwargs["json"]["model"]
+        seen.append(model)
+        if model == "primary":
+            return FakeResponse(ok=False, status_code=404, text='{"error":"not found"}')
+        return FakeResponse(payload={"choices": [{"message": {"content": "剧本"}}]})
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    instance = client(model="primary", fallback_models=("backup",), max_attempts=3)
+    assert instance.complete("prompt") == "剧本"
+    assert seen == ["primary", "backup"]
+
+
+def test_auth_error_stops_instead_of_switching_model(monkeypatch):
+    seen = []
+
+    def fake_post(url, **kwargs):
+        seen.append(kwargs["json"]["model"])
+        return FakeResponse(ok=False, status_code=401, text='{"error":"bad key"}')
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    instance = client(model="primary", fallback_models=("backup",))
+    with pytest.raises(GenerationError):
+        instance.complete("prompt")
+    assert seen == ["primary"]
+
+
+def test_successful_model_is_preferred_on_next_call(monkeypatch):
+    seen = []
+
+    def fake_post(url, **kwargs):
+        model = kwargs["json"]["model"]
+        seen.append(model)
+        if model == "primary":
+            return FakeResponse(ok=False, status_code=503, text='{"error":"overloaded"}')
+        return FakeResponse(payload={"choices": [{"message": {"content": "剧本"}}]})
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    instance = client(model="primary", fallback_models=("backup",), max_attempts=1)
+    assert instance.complete("prompt") == "剧本"
+    assert instance.complete("prompt") == "剧本"
+    assert seen == ["primary", "backup", "backup"]
+
+
+def test_all_models_failed_reports_last_error(monkeypatch):
+    def fake_post(url, **kwargs):
+        return FakeResponse(ok=False, status_code=503, text='{"error":"overloaded"}')
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    instance = client(model="primary", fallback_models=("backup",), max_attempts=1)
+    with pytest.raises(GenerationError) as exc:
+        instance.complete("prompt")
+    assert "503" in str(exc.value)
+
+
+def test_chain_reports_each_switch(monkeypatch):
+    notices = []
+
+    def fake_post(url, **kwargs):
+        return FakeResponse(ok=False, status_code=503, text='{"error":"overloaded"}')
+
+    monkeypatch.setattr(llm_module.requests, "post", fake_post)
+    instance = client(
+        model="primary",
+        fallback_models=("backup",),
+        max_attempts=1,
+        notify=notices.append,
+    )
+    with pytest.raises(GenerationError):
+        instance.complete("prompt")
+    assert any("切换下一个模型 backup" in notice for notice in notices)

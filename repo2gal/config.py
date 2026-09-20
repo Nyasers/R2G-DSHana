@@ -52,6 +52,24 @@ def resolve_model(model: str | None) -> str:
     return model or env_value("REPO2GAL_MODEL") or DEFAULT_MODEL
 
 
+def resolve_model_fallbacks() -> tuple[str, ...]:
+    """REPO2GAL_MODEL_FALLBACKS：逗号分隔的降级模型链，去重且不含主模型。
+
+    免费端点对单个模型的过载与配额都按模型独立计算，换模型比反复等待同一个
+    模型更有效；未配置时返回空链，行为退化为单模型重试。
+    """
+    raw = env_value("REPO2GAL_MODEL_FALLBACKS")
+    if not raw:
+        return ()
+    primary = resolve_model(None)
+    chain: list[str] = []
+    for item in raw.split(","):
+        name = item.strip()
+        if name and name != primary and name not in chain:
+            chain.append(name)
+    return tuple(chain)
+
+
 def resolve_api_key() -> str | None:
     """REPO2GAL_API_KEY 优先，OPENAI_API_KEY 兜底。"""
     return env_value("REPO2GAL_API_KEY") or env_value("OPENAI_API_KEY")

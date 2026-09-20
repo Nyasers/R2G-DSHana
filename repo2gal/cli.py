@@ -26,6 +26,7 @@ from .config import (
     resolve_base_url,
     resolve_github_token,
     resolve_model,
+    resolve_model_fallbacks,
 )
 from .errors import Repo2GalError
 from .fetcher import parse_repo
@@ -168,6 +169,7 @@ def generate(
         save_prompt=Path(save_prompt) if save_prompt else None,
         base_url=resolve_base_url(base_url),
         model=resolve_model(model),
+        model_fallbacks=resolve_model_fallbacks(),
         api_key=resolve_api_key(),
         llm_timeout=timeout,
         asset_pack=Path(asset_pack) if asset_pack else None,

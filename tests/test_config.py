@@ -21,6 +21,17 @@ def test_resolve_model_priority(monkeypatch):
     assert config.resolve_model("flag-model") == "flag-model"
 
 
+def test_resolve_model_fallbacks_dedupes_and_drops_primary(monkeypatch):
+    monkeypatch.setenv("REPO2GAL_MODEL", "primary")
+    monkeypatch.setenv("REPO2GAL_MODEL_FALLBACKS", "backup-a, primary , backup-b,,backup-a")
+    assert config.resolve_model_fallbacks() == ("backup-a", "backup-b")
+
+
+def test_resolve_model_fallbacks_empty_when_unset(monkeypatch):
+    monkeypatch.delenv("REPO2GAL_MODEL_FALLBACKS", raising=False)
+    assert config.resolve_model_fallbacks() == ()
+
+
 def test_resolve_api_key_prefers_repo2gal(monkeypatch):
     monkeypatch.delenv("REPO2GAL_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
