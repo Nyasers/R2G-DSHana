@@ -2,20 +2,56 @@ name: Generate DSHana Chronicle
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 19 * * *"
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: r2g-dshana-pages
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.compare.outputs.tag }}
+      should_run: ${{ steps.compare.outputs.should_run }}
+    steps:
+      - name: Restore recorded release
+        uses: actions/cache/restore@v4
+        with:
+          path: .r2g-state
+          key: dshana-release-${{ github.run_id }}
+          restore-keys: dshana-release-
+
+      - name: Compare with latest DSHana release
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.GH_BACKUP_TOKEN }}
+        run: |
+          set -eu
+          latest=$(gh api repos/Nyasers/DSHana/releases/latest --jq .tag_name)
+          recorded=$(cat .r2g-state/last-release.txt 2>/dev/null | tr -d '\r\n' || true)
+          echo "tag=$latest" >> "$GITHUB_OUTPUT"
+          if [ -n "$recorded" ] && [ "$latest" = "$recorded" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "已按 $latest 生成过，本次跳过"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "待生成的 release：${recorded:-（无记录）} -> $latest"
+          fi
+
   build:
+    needs: check
+    if: needs.check.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,6 +128,17 @@ jobs:
           path: |
             .repo2gal/audit/**
             output/dshana/game/scene/start.txt
+
+      - name: Record generated release
+        run: |
+          mkdir -p .r2g-state
+          printf '%s\n' "${{ needs.check.outputs.tag }}" > .r2g-state/last-release.txt
+
+      - name: Save recorded release
+        uses: actions/cache/save@v4
+        with:
+          path: .r2g-state
+          key: dshana-release-${{ github.run_id }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
