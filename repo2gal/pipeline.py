@@ -70,7 +70,7 @@ class RunOptions:
     strict: bool = False
     save_prompt: Path | None = None
     base_url: str = DEFAULT_BASE_URL
-    model: str = DEFAULT_MODEL
+    models: tuple[str, ...] = (DEFAULT_MODEL,)
     api_key: str | None = None
     llm_timeout: int = DEFAULT_LLM_TIMEOUT
     asset_pack: Path | str | None = None
@@ -311,9 +311,10 @@ def run_pipeline(
     else:
         client = llm_client or LLMClient(
             base_url=options.base_url,
-            model=options.model,
+            models=options.models,
             api_key=options.api_key,
             timeout=options.llm_timeout,
+            notify=log,
         )
         log(f"LLM 第 1/3 轮：自由创作{GAME_MODE_TITLES[options.mode]}剧本草稿")
         draft_raw = client.complete(prompt, temperature=0.8)
