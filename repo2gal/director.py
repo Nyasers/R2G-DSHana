@@ -54,8 +54,8 @@ _SCHEMA = json.loads(
 )
 Draft202012Validator.check_schema(_SCHEMA)
 
-#: 草稿节拍锚点：单独一行的 ``[B]``（允许带行内注释）。
-_BEAT_MARKER = re.compile(r"^\s*\[B\]\s*$", re.IGNORECASE)
+#: 草稿节拍锚点：行首的 ``[B]``，允许与内容同行（模型常把标记和台词写在一行）。
+_BEAT_MARKER = re.compile(r"^\s*\[B\]\s*(?P<inline>.*)$", re.IGNORECASE)
 
 #: 草稿兜底解析时的台词行：``角色名:台词``（半角或全角冒号）。
 _DIALOGUE_LINE = re.compile(r"^(?P<speaker>.+?)\s*[:：]\s*(?P<text>.+)$")
@@ -83,17 +83,20 @@ def _draft_hash(canonical: str) -> str:
 def split_draft_blocks(raw: str) -> tuple[list[list[str]], int]:
     """按 ``[B]`` 锚点切分草稿，返回 (块列表, 锚点数量)。
 
-    没有锚点时整篇草稿归入一个块，由调用方决定是否按空行兜底分段。
+    锚点与本行同写的文本算作该块的首行；没有锚点时整篇草稿归入一个块，
+    由调用方决定是否按空行兜底分段。
     """
     blocks: list[list[str]] = []
     current: list[str] | None = None
     markers = 0
     for line in raw.splitlines():
-        if _BEAT_MARKER.match(line.strip()):
+        match = _BEAT_MARKER.match(line.strip())
+        if match:
             markers += 1
             if current is not None:
                 blocks.append(current)
-            current = []
+            inline = match.group("inline").strip()
+            current = [inline] if inline else []
             continue
         if current is None:
             current = []
