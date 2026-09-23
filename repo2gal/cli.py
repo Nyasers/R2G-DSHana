@@ -56,6 +56,7 @@ def _die(msg: str, code: int) -> None:
     "--mode",
     type=click.Choice(sorted(GAME_MODES)),
     default=DEFAULT_GAME_MODE,
+    envvar="REPO2GAL_MODE",
     show_default=True,
     help="剧本模式：chronicle 编年史 / overview 仓库概览 / quickstart 贡献者上手",
 )

@@ -44,6 +44,34 @@ def _artifacts(*, report=None, output_dir=None, prompt="PROMPT", raw="say:x;\nen
     )
 
 
+def test_mode_reads_env_variable(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake(options, **kwargs):
+        captured["options"] = options
+        return _artifacts(output_dir=tmp_path / "out")
+
+    monkeypatch.setattr(cli, "run_pipeline", fake)
+    monkeypatch.setenv("REPO2GAL_MODE", "overview")
+    result = CliRunner().invoke(cli.main, ["acme/widget", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert captured["options"].mode == "overview"
+
+
+def test_mode_flag_overrides_env_variable(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake(options, **kwargs):
+        captured["options"] = options
+        return _artifacts(output_dir=tmp_path / "out")
+
+    monkeypatch.setattr(cli, "run_pipeline", fake)
+    monkeypatch.setenv("REPO2GAL_MODE", "overview")
+    result = CliRunner().invoke(cli.main, ["acme/widget", "--mode", "quickstart"])
+    assert result.exit_code == 0, result.output
+    assert captured["options"].mode == "quickstart"
+
+
 def test_cli_maps_options_into_run_options(monkeypatch, tmp_path):
     captured = {}
 
