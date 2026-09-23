@@ -26,12 +26,16 @@ Cloudflare DNS：repo2gal.rhopaper.top CNAME cname-china.vercel-dns.com（仅 DN
 |---|---|---|
 | `.github/workflows/ci.yml` | 所有 push 和 PR | 离线测试、内置 Asset Pack 校验、release wheel 构建 |
 | `.github/workflows/deploy-demo.yml` | `main` 的 CI 成功后；或在 `main` 手动触发 | 真实数据/LLM 生成、严格校验、审计上传、Vercel production 部署和线上校验 |
+| `.github/workflows/deploy-pages.yml` | 在 `main` 手动触发（想持续部署再打开 `workflow_run` 触发器） | 同一套生成与校验流程，改为发布到 GitHub Pages（备选托管，不依赖 Vercel，见文末附录） |
 
 标准路径是每次 push 到 `main` 部署一次最终 commit。一次 push 包含多个 commit 时不会逐个
 重复调用 LLM；快速连续 push 会由 concurrency 取消旧部署，只保留最新 commit。
 
 PR 不会获得生产 secrets，也不会部署。Deploy job 使用 GitHub `production` environment，
 可以在仓库 Settings 中为该 environment 增加 required reviewers。
+
+`deploy-pages.yml` 是 Vercel 之外的备选托管，只用 `REPO2GAL_API_KEY`，发布到
+GitHub Pages；启用方式和可选参数见文末「GitHub Pages 备选托管」。
 
 ### 必需 Secrets
 
@@ -165,6 +169,34 @@ curl -sI https://repo2gal.rhopaper.top/demo          # 期望 200
 curl -sI https://repo2gal.rhopaper.top/              # 期望 307 -> /demo
 curl -sI https://repo2gal.rhopaper.top/demo/game/scene/start.txt   # 期望 200
 ```
+
+## 附：GitHub Pages 备选托管
+
+没有 Vercel 项目或自定义域名时，可以用 `deploy-pages.yml` 把同一份产物发布到
+GitHub Pages。它复用 `deploy-demo.yml` 的生成参数（内置 CC0 包、`--strict`、
+审计 artifact），只替换发布环节，也不读取 `VERCEL_TOKEN`。
+
+启用步骤：
+
+1. 仓库 `Settings -> Pages` 把 Source 设为 **GitHub Actions**；
+2. 至少配置 `REPO2GAL_API_KEY` secret；需要换端点或模型时再配置
+   `REPO2GAL_BASE_URL` 与 `REPO2GAL_MODEL` variables；
+3. 在 `main` 手动触发一次。
+
+默认只手动触发。上游 `main` 的 CI 成功后已经由 `deploy-demo.yml` 生成并部署过一次，
+两条流水线都挂 `workflow_run` 会让每次 push 产生两次 LLM 生成。要让 Pages 站点也随
+`main` 自动更新，把 `deploy-pages.yml` 顶部被注释的 `workflow_run` 触发器解开即可。
+
+产物以站点根目录发布，站内资源本来就是相对路径，因此不需要 Vercel 那套 `/demo`
+路由。`workflow_dispatch` 的可选参数：
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `repo` | 本仓库 | 要生成剧本的目标仓库（`owner/repo`） |
+| `mode` | `chronicle` | `chronicle` / `overview` / `quickstart` |
+
+站点地址为 `https://<owner>.github.io/<repo>/`。两条部署流水线互不影响，可以只启用
+其中一条，也可以同时启用作为双保险。
 
 ## 注意事项
 

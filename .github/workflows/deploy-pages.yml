@@ -1,0 +1,147 @@
+name: Deploy Demo to GitHub Pages
+
+# Optional second home for the dogfooding demo: same generation pipeline as
+# deploy-demo.yml, published as a static GitHub Pages site instead of Vercel.
+# Useful when no Vercel project or custom domain is available. Requires the
+# repository Pages source to be set to "GitHub Actions".
+#
+# Manual by default; see the commented workflow_run trigger below for
+# continuous deployment on main.
+
+on:
+  # 默认只手动触发：上游 main 的 CI 成功后已经由 deploy-demo.yml 部署一次，
+  # 两条流水线都挂 workflow_run 会让每次 push 产生两次 LLM 生成。想让 Pages
+  # 站点也随 main 自动更新时，解开下面的注释：
+  # workflow_run:
+  #   workflows: [CI]
+  #   types: [completed]
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Repository to chronicle (owner/repo); empty means this repository"
+        required: false
+        default: ""
+      mode:
+        description: "Script mode"
+        type: choice
+        options:
+          - chronicle
+          - overview
+          - quickstart
+        default: chronicle
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo2gal-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      DEPLOY_SHA: ${{ github.sha }}
+      TARGET_REPO: ${{ inputs.repo || github.repository }}
+      MODE: ${{ inputs.mode || 'chronicle' }}
+
+    steps:
+      - name: Checkout successful commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Require generation secret
+        env:
+          REPO2GAL_API_KEY: ${{ secrets.REPO2GAL_API_KEY }}
+        run: |
+          test -n "$REPO2GAL_API_KEY" || {
+            echo "Missing GitHub secret: REPO2GAL_API_KEY" >&2
+            exit 1
+          }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install --yes libmagic1
+
+      - name: Install Repo2Gal
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -e .
+
+      - name: Restore WebGAL template cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/repo2gal
+          key: ${{ runner.os }}-repo2gal-webgal-4.6.2
+
+      - name: Restore incremental GitHub backup
+        uses: actions/cache@v4
+        with:
+          path: .repo2gal/backups
+          key: ${{ runner.os }}-repo2gal-pages-backup-${{ env.DEPLOY_SHA }}
+          restore-keys: |
+            ${{ runner.os }}-repo2gal-pages-backup-
+
+      - name: Generate strict dogfooding demo
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO2GAL_API_KEY: ${{ secrets.REPO2GAL_API_KEY }}
+          REPO2GAL_BASE_URL: ${{ vars.REPO2GAL_BASE_URL }}
+          REPO2GAL_MODEL: ${{ vars.REPO2GAL_MODEL }}
+        run: |
+          .venv/bin/repo2gal "$TARGET_REPO" \
+            --mode "$MODE" \
+            --asset-pack builtin:cc0-chronicle \
+            --public-assets \
+            --profile chronicle-subtle \
+            --strict \
+            --save-stage-outputs .repo2gal/audit/stages \
+            --output output/demo
+
+      - name: Verify generated demo
+        run: |
+          test -s output/demo/index.html
+          test -s output/demo/game/scene/start.txt
+          test -s .repo2gal/audit/stages/03-director-report.json
+          grep -q "end;" output/demo/game/scene/start.txt
+          grep -q '"degraded": false' .repo2gal/audit/stages/03-director-report.json
+
+      - name: Upload generation audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo2gal-pages-${{ env.DEPLOY_SHA }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            .repo2gal/audit/**
+            output/demo/game/scene/start.txt
+            output/demo/THIRD_PARTY_NOTICES.md
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output/demo
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
