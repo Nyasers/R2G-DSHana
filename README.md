@@ -22,6 +22,9 @@
 
 https://repo2gal.rhopaper.top/demo
 
+给自己仓库部署演示推荐 **GitHub Pages**：只需要一个 LLM API Key，不需要 Vercel 项目或
+自定义域名；两条部署路径分开配置，步骤见同一篇文档。
+
 ## 特性
 
 `[x]` 已实现，`[ ]` 规划中。规划项的顺序与依据见

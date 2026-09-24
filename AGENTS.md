@@ -32,9 +32,11 @@ Overview 模式不使用旁白，向导台词全部由角色亲口说出；v0.7.
 在线演示（dogfooding 产物）：https://repo2gal.rhopaper.top/demo ，
 部署与更新方式见 `docs/dev/deployment.md`。
 
-GitHub Actions 的 `CI` 对 push/PR 运行离线测试；`Deploy Demo` 只在 `main` 的 CI 成功后
-使用仓库 secrets 生成并部署生产演示。PR 不得接触 LLM/Vercel secrets，自动部署规则以
-`docs/dev/deployment.md` 为准。
+GitHub Actions 的 `CI` 对 push/PR 运行离线测试。部署有两条**分开配置、互不影响**的路径：
+`Deploy Demo`（Vercel）只在本仓库 `main` 的 CI 成功后使用仓库 secrets 生成并部署生产演示；
+`Deploy Demo to GitHub Pages` 是面向其它项目开发者的推荐路径，`main` 上手动触发、只用
+`REPO2GAL_API_KEY`、不读 Vercel 凭据。本仓库的演示站保持 Vercel 不变。PR 不得接触
+LLM/Vercel secrets，自动部署规则以 `docs/dev/deployment.md` 为准。
 
 开始工作前必读：
 

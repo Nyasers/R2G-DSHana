@@ -18,15 +18,28 @@ Vercel 项目 repo2gal-demo ── 域名 repo2gal.rhopaper.top（已验证）
 Cloudflare DNS：repo2gal.rhopaper.top CNAME cname-china.vercel-dns.com（仅 DNS）
 ```
 
+## 部署方式选择
+
+两条部署路径**分开配置、互不影响**，可以只启用其中一条：
+
+| 方式 | 适合谁 | 触发方式 | 额外依赖 |
+|---|---|---|---|
+| **GitHub Pages（推荐）** | 其它项目开发者：把自己仓库的演示挂出去 | `deploy-pages.yml`，`workflow_dispatch` 手动 | 只需 `REPO2GAL_API_KEY`；把仓库 `Settings -> Pages` 的 Source 设为 GitHub Actions |
+| Vercel | 本仓库当前的生产演示（`repo2gal.rhopaper.top/demo`） | `deploy-demo.yml`，`main` 的 CI 成功后自动 | 另需 `VERCEL_TOKEN`、Vercel 项目与自定义域名 |
+
+本仓库的演示站保持 Vercel 不变：`deploy-pages.yml` 在这里默认只手动触发，不会自动发布，
+也不读取 Vercel 凭据。给自己项目部署时推荐 GitHub Pages——不需要 Vercel 项目或自定义
+域名，站点地址就是 `https://<owner>.github.io/<repo>/`。
+
 ## 自动部署
 
-仓库通过两条 GitHub Actions workflow 持续部署：
+仓库通过三条 GitHub Actions workflow 运行：
 
 | Workflow | 触发条件 | 职责 |
 |---|---|---|
 | `.github/workflows/ci.yml` | 所有 push 和 PR | 离线测试、内置 Asset Pack 校验、release wheel 构建 |
 | `.github/workflows/deploy-demo.yml` | `main` 的 CI 成功后；或在 `main` 手动触发 | 真实数据/LLM 生成、严格校验、审计上传、Vercel production 部署和线上校验 |
-| `.github/workflows/deploy-pages.yml` | 在 `main` 手动触发（想持续部署再打开 `workflow_run` 触发器） | 同一套生成与校验流程，改为发布到 GitHub Pages（备选托管，不依赖 Vercel，见文末附录） |
+| `.github/workflows/deploy-pages.yml` | 在 `main` 手动触发（想持续部署再打开 `workflow_run` 触发器） | 同一套生成与校验流程，发布到 GitHub Pages（推荐给其它项目开发者的托管路径，不依赖 Vercel，见文末附录） |
 
 标准路径是每次 push 到 `main` 部署一次最终 commit。一次 push 包含多个 commit 时不会逐个
 重复调用 LLM；快速连续 push 会由 concurrency 取消旧部署，只保留最新 commit。
@@ -34,8 +47,8 @@ Cloudflare DNS：repo2gal.rhopaper.top CNAME cname-china.vercel-dns.com（仅 DN
 PR 不会获得生产 secrets，也不会部署。Deploy job 使用 GitHub `production` environment，
 可以在仓库 Settings 中为该 environment 增加 required reviewers。
 
-`deploy-pages.yml` 是 Vercel 之外的备选托管，只用 `REPO2GAL_API_KEY`，发布到
-GitHub Pages；启用方式和可选参数见文末「GitHub Pages 备选托管」。
+`deploy-pages.yml` 与 Vercel 完全分开：只用 `REPO2GAL_API_KEY`，发布到 GitHub Pages，
+不读 `VERCEL_TOKEN`；启用方式和可选参数见文末「GitHub Pages 部署」。
 
 ### 必需 Secrets
 
@@ -170,11 +183,11 @@ curl -sI https://repo2gal.rhopaper.top/              # 期望 307 -> /demo
 curl -sI https://repo2gal.rhopaper.top/demo/game/scene/start.txt   # 期望 200
 ```
 
-## 附：GitHub Pages 备选托管
+## 附：GitHub Pages 部署（推荐给其它项目开发者）
 
-没有 Vercel 项目或自定义域名时，可以用 `deploy-pages.yml` 把同一份产物发布到
-GitHub Pages。它复用 `deploy-demo.yml` 的生成参数（内置 CC0 包、`--strict`、
-审计 artifact），只替换发布环节，也不读取 `VERCEL_TOKEN`。
+把自己仓库的演示挂出去时，推荐用 `deploy-pages.yml`：不需要 Vercel 项目或自定义域名，
+凭据也只有 `REPO2GAL_API_KEY`。它复用 `deploy-demo.yml` 的生成参数（内置 CC0 包、
+`--strict`、审计 artifact），只替换发布环节，也不读取 `VERCEL_TOKEN`。
 
 启用步骤：
 
