@@ -112,6 +112,12 @@ def test_canonicalize_draft_ignores_empty_marker_blocks():
     assert beats == ["widget:你好。"]
 
 
+def test_canonicalize_draft_accepts_inline_marker_content():
+    draft, beats = canonicalize_draft("[B] widget:你好。\n[B] 这是旁白。\n")
+    assert beats == ["widget:你好。", "这是旁白。"]
+    assert "[b000002]" in draft
+
+
 def test_canonicalize_draft_never_returns_no_beats():
     _, beats = canonicalize_draft("   \n")
     assert len(beats) == 1
