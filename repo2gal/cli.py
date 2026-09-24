@@ -25,7 +25,7 @@ from .config import (
     resolve_api_key,
     resolve_base_url,
     resolve_github_token,
-    resolve_model,
+    resolve_model_chain,
 )
 from .errors import Repo2GalError
 from .fetcher import parse_repo
@@ -66,7 +66,11 @@ def _die(msg: str, code: int) -> None:
     type=click.Path(),
     help="产物目录；默认 ./output/<repo>，非 chronicle 模式为 ./output/<repo>-<mode>",
 )
-@click.option("--model", default=None, help="模型名，默认取 REPO2GAL_MODEL 或 deepseek-v4-pro")
+@click.option(
+    "--model",
+    default=None,
+    help="模型链，逗号分隔，首个为主模型；默认取 REPO2GAL_MODEL 或 deepseek-v4-pro",
+)
 @click.option("--base-url", default=None, help="OpenAI 兼容端点，默认取 REPO2GAL_BASE_URL")
 @click.option(
     "--threads",
@@ -167,7 +171,7 @@ def generate(
         strict=strict,
         save_prompt=Path(save_prompt) if save_prompt else None,
         base_url=resolve_base_url(base_url),
-        model=resolve_model(model),
+        models=resolve_model_chain(model),
         api_key=resolve_api_key(),
         llm_timeout=timeout,
         asset_pack=Path(asset_pack) if asset_pack else None,

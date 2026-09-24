@@ -48,8 +48,19 @@ def resolve_base_url(base_url: str | None) -> str:
     return (base_url or env_value("REPO2GAL_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
 
 
-def resolve_model(model: str | None) -> str:
-    return model or env_value("REPO2GAL_MODEL") or DEFAULT_MODEL
+def resolve_model_chain(model: str | None = None) -> tuple[str, ...]:
+    """模型链：``REPO2GAL_MODEL`` 支持逗号分隔，首个为主模型，其余按顺序降级。
+
+    只填一个模型名是链长为 1 的特例，行为与不配降级完全一致。免费端点对单个
+    模型的过载与配额都按模型独立计算，链让「换一个再用」成为默认的恢复方式。
+    """
+    raw = model or env_value("REPO2GAL_MODEL") or DEFAULT_MODEL
+    chain: list[str] = []
+    for item in raw.split(","):
+        name = item.strip()
+        if name and name not in chain:
+            chain.append(name)
+    return tuple(chain) or (DEFAULT_MODEL,)
 
 
 def resolve_api_key() -> str | None:

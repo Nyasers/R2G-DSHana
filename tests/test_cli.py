@@ -86,7 +86,7 @@ def test_cli_maps_options_into_run_options(monkeypatch, tmp_path):
     assert options.script == script
     assert options.output_dir == output
     assert options.backup_root == backup
-    assert options.model == "custom-model"
+    assert options.models == ("custom-model",)
     assert options.base_url == "https://custom.example/v1"
     assert options.asset_pack == asset_pack
     assert options.public_assets is True
