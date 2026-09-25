@@ -177,6 +177,22 @@ def test_director_prompt_marks_figure_capable_cast():
     assert "只有标「有立绘」的角色能出现在 `figure.*` 动作里" in prompt
 
 
+def test_director_prompt_states_jump_is_bare_string():
+    """schema 要求 jump 是 string|null；prompt 不能出现 jump.target 这种写法。"""
+    prompt = build_director_prompt(
+        "[b000001]\nwidget:你好。",
+        "",
+        cast_names=sorted(CAST),
+        mode="chronicle",
+        asset_pack=None,
+        backgrounds=[],
+        bgm=[],
+        profile="chronicle-subtle",
+    )
+    assert '"jump": "b000022"' in prompt
+    assert "jump.target" not in prompt
+
+
 def test_director_prompt_chronicle_allows_narration():
     prompt = build_director_prompt(
         "[b000001]\nwidget:你好。",
@@ -200,6 +216,42 @@ def test_load_director_accepts_valid_plan():
     assert report.schema_valid is True
     assert report.semantic_valid is True
     assert error_messages(report) == []
+
+
+def test_load_director_unwraps_object_beat_id_references():
+    """模型把 beat id 包成对象（{"target": "b000002"}）时机械拆包，而不是整份打回。"""
+    plan = make_plan(
+        [
+            beat(1, kind="dialogue", speaker="widget", text="你好。", jump={"target": "b000002"}),
+            beat(
+                2,
+                kind="choice",
+                speaker=None,
+                text="看什么？",
+                choices=[{"text": "看历史", "target": {"target": "b000001"}}],
+            ),
+        ]
+    )
+    loaded, report = load_and_validate(plan)
+    assert loaded is not None
+    assert report.schema_valid is True
+    assert error_messages(report) == []
+    assert report.degraded is False  # fix 类发现不算降级，部署门不受影响
+    assert loaded["beats"][0]["jump"] == "b000002"
+    assert loaded["beats"][1]["choices"][0]["target"] == "b000001"
+    assert any(f["kind"] == "fix" for f in report.findings)
+
+
+def test_load_director_keeps_rejecting_unknown_jump_target():
+    """拆包只改形状：拆出来的 id 不存在时仍然报错。"""
+    plan = make_plan(
+        [
+            beat(1, kind="dialogue", speaker="widget", text="你好。", jump={"target": "b000099"}),
+            beat(2, kind="narration", speaker=None, text="这是历史。"),
+        ]
+    )
+    _, report = load_and_validate(plan)
+    assert any("jump 目标不存在" in message for message in error_messages(report))
 
 
 def test_load_director_strips_markdown_fence():

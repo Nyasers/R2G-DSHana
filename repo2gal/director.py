@@ -215,6 +215,45 @@ def retry_suffix(feedback: str) -> str:
 # --- Director Plan 解析与校验 ---
 
 
+def _unwrap_id_reference(value: Any) -> Any:
+    """把 ``{"target": "b000022"}`` 拆成 ``"b000022"``。
+
+    模型偶尔按「jump.target」的字面写法把 beat id 包成对象，schema 只接受裸字符串。
+    这里只归一形状；目标 id 是否存在仍由 :func:`validate_director` 判定。
+    """
+    if isinstance(value, dict) and set(value) == {"target"} and isinstance(value["target"], str):
+        return value["target"]
+    return value
+
+
+def _normalize_beat_id_references(plan: dict[str, Any], report: PerformanceReport) -> None:
+    """归一 ``jump`` 与 ``choices[].target`` 的机械包装（形状问题，不改语义）。"""
+    beats = plan.get("beats")
+    if not isinstance(beats, list):
+        return
+    for beat in beats:
+        if not isinstance(beat, dict):
+            continue
+        current = beat.get("jump")
+        unwrapped = _unwrap_id_reference(current)
+        if unwrapped is not current:
+            report.add("fix", "jump 写成了对象，已拆成裸字符串 beat id", beat_id=beat.get("id"))
+            beat["jump"] = unwrapped
+        choices = beat.get("choices")
+        if not isinstance(choices, list):
+            continue
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            current = choice.get("target")
+            unwrapped = _unwrap_id_reference(current)
+            if unwrapped is not current:
+                report.add(
+                    "fix", "choices[].target 写成了对象，已拆成裸字符串 beat id", beat_id=beat.get("id")
+                )
+                choice["target"] = unwrapped
+
+
 def load_director(
     raw: str,
     *,
@@ -233,6 +272,7 @@ def load_director(
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
         report.add("error", f"导演计划不是合法 JSON：{exc}")
         return None
+    _normalize_beat_id_references(plan, report)
     for key, expected in (("storyHash", story_hash), ("sceneId", scene_id), ("profile", profile)):
         if expected is None:
             continue

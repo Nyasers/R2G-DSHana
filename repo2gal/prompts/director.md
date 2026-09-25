@@ -27,7 +27,7 @@
 - `cue.anchor`：before / during / after。
 - `screen.transition` 动作必须与同一 beat 的 `stage.background` 一起出现；shockwaveIn 用 `phase: "enter"`，shockwaveOut 用 `phase: "exit"`。
 - `choice` beat 必须有 `choices` 数组，每个 `target` 必须是草稿中存在的 beat id；choice beat 不要再设置 `jump`。
-- `jump` 可选，`target` 必须是草稿中存在的 beat id。
+- `jump` 可选，值就是草稿中存在的 beat id 裸字符串：`"jump": "b000022"`。它本身就是字符串，不要再包一层 `target` 字段。
 - `title` 与 `subtitle` 各一行（可省略 subtitle）；由系统生成的 `sceneId`、`storyHash`、`profile` 照抄输入即可。
 - 动作必须写全该 `kind` 的全部字段，字段名不得自造；下面每条是一段动作的完整形态（不是同一个 cue 的内容）：
   - `{"kind": "figure.enter", "character": "角色", "slot": "left", "motion": "from-left", "duration": "medium"}`
@@ -38,7 +38,7 @@
   - `{"kind": "screen.transition", "phase": "enter", "preset": "shockwaveIn", "duration": "medium"}`
   - `{"kind": "screen.effect", "preset": "snow", "intensity": "subtle"}`
   动画、转场与屏幕效果一律用 `preset`；没有 `animation`、`effect` 这类字段名。
-- `choices[].target` 与 `jump.target` 都是裸字符串（形如 `"b000022"`），不得写成对象。
+- `choices[].target` 是裸字符串（形如 `"b000022"`），`jump` 本身也是裸字符串（形如 `"jump": "b000022"`）；两处都不得写成对象。
 - `figure.*` 动作的 `character` 只能取「角色表」里标了（有立绘）的角色；标（无立绘）的角色不得出现在任何 `figure.*` 动作里；「可用素材」的立绘为（无）时整份剧本都不写 `figure.*`。
 - 同一角色先 `figure.enter`，之后才能 `figure.move` / `figure.shake` / `figure.animate` / `figure.exit`；同一 beat 里不要给同一角色安排互相冲突的动作。
 
@@ -71,7 +71,8 @@
       "id": "b000002",
       "kind": "dialogue",
       "speaker": "Repo2Gal",
-      "text": "台词文本"
+      "text": "台词文本",
+      "jump": "b000003"
     },
     {
       "id": "b000003",
