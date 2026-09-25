@@ -107,6 +107,7 @@ GitHub GraphQL；禁止借此恢复通用 API 客户端、分页器、限流器�
 - 场景脚本是 `game/scene/*.txt`，不是 `.wg`
 - 对话是 `角色名:文本;`
 - 旁白是 `say:文本 -clear;`，不是 `say:角色:文本`；4.6.2 的 say.ts 先继承上一句 speaker，漏 `-clear` 会显示成上一句话的角色（validator 会确定性补齐）
+- `changeFigure:none` 是清空立绘的保留取值，不是素材名；validator 通过 `webgal.RESERVED_ASSET_REFERENCES` 放行（否则每次角色退场都降级，`--strict` 下直接失败）
 - 不存在可依赖的 `webgal build` / `webgal serve` npm CLI
 - 语法权威来源是 `packages/parser/src/` 和官方 demo
 

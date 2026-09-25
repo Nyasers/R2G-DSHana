@@ -24,7 +24,8 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 生成约 30 分钟（真实采集 + 5 次 LLM 调用），线上校验最多再等 10 分钟。
+    timeout-minutes: 60
     environment:
       name: production
       url: https://repo2gal.rhopaper.top/demo
@@ -161,9 +162,27 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-all-errors \
             --retry-delay 3 https://repo2gal.rhopaper.top/demo \
             --output /tmp/demo-index.html
-          curl --fail --silent --show-error --retry 10 --retry-all-errors \
-            --retry-delay 3 https://repo2gal.rhopaper.top/demo/game/scene/start.txt \
-            --output /tmp/demo-start.txt
-          cmp output/Repo2Gal/game/scene/start.txt /tmp/demo-start.txt
+          # 自定义域名切到新部署有滞后（实测约 8 分钟），所以内容比对必须轮询：
+          # curl 的 --retry 只覆盖网络错误，覆盖不了「200 但还是上一版内容」。
+          # 最多等 10 分钟（30 次 × 20 秒），仍不一致才判失败。
+          live=/tmp/demo-start.txt
+          matched=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --retry 3 --retry-all-errors \
+                 --retry-delay 3 https://repo2gal.rhopaper.top/demo/game/scene/start.txt \
+                 --output "$live" \
+               && cmp -s output/Repo2Gal/game/scene/start.txt "$live"; then
+              echo "线上脚本与本次生成一致（第 $attempt 次比对）"
+              matched=1
+              break
+            fi
+            echo "第 $attempt 次比对仍是上一版内容，20 秒后重试"
+            sleep 20
+          done
+          if [ "$matched" != 1 ]; then
+            echo "线上脚本在约 10 分钟内没有更新为本次生成的内容：" >&2
+            cmp output/Repo2Gal/game/scene/start.txt "$live" || true
+            exit 1
+          fi
           curl --fail --silent --show-error --head \
             https://repo2gal.rhopaper.top/ | grep -qi '^location: /demo'

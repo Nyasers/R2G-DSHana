@@ -89,6 +89,15 @@ ASSET_DIRS: dict[str, str] = {
     "callScene": "scene",
 }
 
+# 素材命令里的保留引用值：解析器认可、但不是素材名的取值。
+# ``changeFigure:none`` 是官方「清空立绘」的写法，确定性编译内核用它实现角色退场
+# （``performance._compile_action`` 的 ``figure.exit``）。素材白名单必须放行它，
+# 否则每次角色退场都会被 validator 当作缺失素材降级：非 strict 时角色不会退场，
+# `--strict` 时整个运行以退出码 5 失败。
+RESERVED_ASSET_REFERENCES: dict[str, frozenset[str]] = {
+    "changeFigure": frozenset({"none"}),
+}
+
 
 def escape_text(text: str) -> str:
     """转义 WebGAL 正文中的保留字符。

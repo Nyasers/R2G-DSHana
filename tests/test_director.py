@@ -10,6 +10,7 @@ import json
 import pytest
 
 from repo2gal.asset_pack import load_asset_pack
+from repo2gal.config import DEFAULT_BACKGROUNDS, DEFAULT_BGM
 from repo2gal.director import (
     DIRECTOR_SCHEMA_URI,
     build_annotation_prompt,
@@ -22,6 +23,8 @@ from repo2gal.director import (
     validate_director,
 )
 from repo2gal.performance import PerformanceReport
+from repo2gal.validator import sanitize
+from repo2gal.webgal import COMPILE_COMMANDS
 
 EXAMPLE_PACK = "builtin:cc0-chronicle"
 CAST = {"widget", "Rust", "guide"}
@@ -523,6 +526,13 @@ def test_compile_figure_exit_and_move_reuse_runtime_id():
     )
     script = compile_director(plan, asset_pack=pack)
     assert "changeFigure:none -id=fig-guide" in script
+    # 编译产物必须零降级通过 validator：figure.exit 产出的 changeFigure:none
+    # 是保留取值，不能被素材白名单当成缺失素材（否则 --strict 直接失败）。
+    catalog = pack.command_catalog()
+    catalog["changeBg"] |= frozenset(DEFAULT_BACKGROUNDS)
+    catalog["bgm"] |= frozenset(DEFAULT_BGM)
+    _, report = sanitize(script, speakers={"guide"}, allowed=COMPILE_COMMANDS, assets=catalog)
+    assert report.downgrades == 0
 
 
 def test_compile_screen_effect_inlines_pixi_init():

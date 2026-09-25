@@ -19,7 +19,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from .webgal import KNOWN_COMMANDS, SAFE_COMMANDS, statement_body
+from .webgal import (
+    KNOWN_COMMANDS,
+    RESERVED_ASSET_REFERENCES,
+    SAFE_COMMANDS,
+    statement_body,
+)
 
 #: 形似命令的 ASCII 标识符（camelCase / snake_case），用于识别 LLM 幻觉命令。
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -181,7 +186,9 @@ def sanitize(
         if cmd in allowed:
             if assets is not None and cmd in ("changeBg", "changeFigure", "bgm"):
                 reference = content.split(" -", 1)[0].strip()
-                if reference not in assets.get(cmd, frozenset()):
+                # 保留取值（如 changeFigure:none 清空立绘）不是素材名，直接放行。
+                reserved = RESERVED_ASSET_REFERENCES.get(cmd, frozenset())
+                if reference not in reserved and reference not in assets.get(cmd, frozenset()):
                     safe = f";[repo2gal] 素材引用 '{reference}' 不可用，已注释：{body};"
                     report.add(
                         line_no,

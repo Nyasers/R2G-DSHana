@@ -127,6 +127,11 @@ say:这是旁白 -clear;      ← 不清除就会顶着「角色A」的名字显
 | `end` | `end;` | 结束游戏 |
 | `miniAvatar` | `miniAvatar:avatar.webp;` | 小头像 |
 
+> `changeFigure:none` 是官方「清空立绘」的保留取值，**不是素材名**：确定性编译内核用它实现
+> 角色退场（`performance._compile_action` 的 `figure.exit`），validator 的素材白名单通过
+> `webgal.RESERVED_ASSET_REFERENCES` 放行它。把它当缺失素材降级会导致角色不退场，
+> 并且 `--strict` 下整次运行失败。
+
 ### 流程控制
 
 | 命令 | 示例 |

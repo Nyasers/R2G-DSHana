@@ -162,6 +162,31 @@ def test_change_figure_is_safe_when_asset_is_declared():
     assert rep.downgrades == 0
 
 
+def test_change_figure_none_is_reserved_and_kept():
+    """changeFigure:none 是官方「清空立绘」，不是缺失素材（figure.exit 的编译产物）。"""
+    assets = {
+        "changeBg": frozenset({"background.archive"}),
+        "changeFigure": frozenset({"character.guide.normal"}),
+        "bgm": frozenset({"bgm.archive"}),
+    }
+    line = "changeFigure:none -id=fig-guide -duration=0;"
+    out, rep = run(f"{line}\nend;\n", assets=assets)
+    assert line in out
+    assert rep.downgrades == 0
+
+
+def test_reserved_reference_is_command_scoped():
+    """none 只对 changeFigure 是保留值；其它素材命令仍按缺失素材降级。"""
+    assets = {
+        "changeBg": frozenset({"background.archive"}),
+        "changeFigure": frozenset({"character.guide.normal"}),
+        "bgm": frozenset({"bgm.archive"}),
+    }
+    out, rep = run("changeBg:none;\nend;\n", assets=assets)
+    assert out.splitlines()[0].startswith(";[repo2gal]")
+    assert rep.downgrades == 1
+
+
 def test_unknown_asset_reference_is_commented_out():
     assets = {
         "changeBg": frozenset({"background.archive"}),
