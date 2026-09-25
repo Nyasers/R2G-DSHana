@@ -136,6 +136,19 @@ def _figures_line(asset_pack: AssetPack | None) -> str:
     return "、".join(characters) if characters else "（无）"
 
 
+def _cast_line(cast_names: list[str], asset_pack: AssetPack | None) -> str:
+    """角色表：逐个标出有没有立绘。
+
+    LLM 常给没有立绘的角色安排 figure.* 动作（validator 会报「角色没有可用立绘」并整份打回），
+    把「谁能上台」写进角色表本身，比只给一份立绘名单更不容易被忽略。
+    """
+    staged = set(_asset_character_map(asset_pack))
+    marked = [
+        f"{name}（{'有立绘' if name in staged else '无立绘'}）" for name in cast_names
+    ]
+    return "、".join(marked) if marked else "（无）"
+
+
 def build_annotation_prompt(
     draft: str,
     *,
@@ -167,7 +180,7 @@ def build_director_prompt(
     """第三轮 prompt：把草稿与批注落成 Director Plan JSON。"""
     template = resources.files("repo2gal").joinpath("prompts/director.md").read_text(encoding="utf-8")
     return (
-        template.replace("{characters}", "、".join(cast_names))
+        template.replace("{characters}", _cast_line(cast_names, asset_pack))
         .replace("{backgrounds}", "、".join(backgrounds) or "（无）")
         .replace("{figures}", _figures_line(asset_pack))
         .replace("{bgm}", "、".join(bgm) or "（无）")

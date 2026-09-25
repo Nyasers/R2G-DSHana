@@ -39,6 +39,8 @@
   - `{"kind": "screen.effect", "preset": "snow", "intensity": "subtle"}`
   动画、转场与屏幕效果一律用 `preset`；没有 `animation`、`effect` 这类字段名。
 - `choices[].target` 与 `jump.target` 都是裸字符串（形如 `"b000022"`），不得写成对象。
+- `figure.*` 动作的 `character` 只能取「角色表」里标了（有立绘）的角色；标（无立绘）的角色不得出现在任何 `figure.*` 动作里；「可用素材」的立绘为（无）时整份剧本都不写 `figure.*`。
+- 同一角色先 `figure.enter`，之后才能 `figure.move` / `figure.shake` / `figure.animate` / `figure.exit`；同一 beat 里不要给同一角色安排互相冲突的动作。
 
 # JSON 形状（只输出 JSON，不要 Markdown 代码围栏，不要解释）
 
@@ -87,10 +89,13 @@
 
 - 没有的字段直接省略，不要写 null 占位（示例里的 null 仅表示“可空”）。
 - 台词正文里原本就有的换行请合并为一行。
+- 示例里的 `Rust`、`Repo2Gal`、`archive`、`bgm.webp` 只是形状占位，必须替换成「角色表」「可用素材」里真实存在的名字；不要照抄示例角色的 `figure.*` 动作。
 
 # 角色表
 
 {characters}
+
+（只有标「有立绘」的角色能出现在 `figure.*` 动作里。）
 
 # 可用素材
 

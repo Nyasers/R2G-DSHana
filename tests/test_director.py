@@ -160,6 +160,23 @@ def test_director_prompt_contains_cast_catalog_and_mode_rule():
     assert "不使用旁白" in prompt
 
 
+def test_director_prompt_marks_figure_capable_cast():
+    """角色表逐个标注有无立绘：没有立绘的角色不得出现在 figure.* 动作里。"""
+    prompt = build_director_prompt(
+        "[b000001]\nguide:你好。",
+        "",
+        cast_names=sorted(CAST),
+        mode="chronicle",
+        asset_pack=load_asset_pack(EXAMPLE_PACK),
+        backgrounds=["background.archive"],
+        bgm=["s_Title.mp3"],
+        profile="chronicle-subtle",
+    )
+    assert "guide（有立绘）" in prompt
+    assert "widget（无立绘）" in prompt
+    assert "只有标「有立绘」的角色能出现在 `figure.*` 动作里" in prompt
+
+
 def test_director_prompt_chronicle_allows_narration():
     prompt = build_director_prompt(
         "[b000001]\nwidget:你好。",
